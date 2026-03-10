@@ -9,11 +9,15 @@ import {
 import {
     fetchHeatmap,
     fetchTimeline,
+    fetchSST,
+    fetchArticles,
+    BackendArticle,
     transformTimelineToHeatmapMatrix,
     BackendTimelineSnapshot,
 } from "@/lib/api";
 import { usePolling } from "@/hooks/usePolling";
 import LiveStatusBadge from "@/components/LiveStatusBadge";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 function getHeatColor(value: number): string {
     if (value >= 60) return "rgba(57, 255, 20, 0.85)";
@@ -43,6 +47,15 @@ function getCategoryColor(category: string): string {
     }
 }
 
+const formatLabel = (str: string) => str.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+function getProbColor(value: number): string {
+    if (value >= 0.3) return "#EF4444";
+    if (value >= 0.1) return "#F59E0B";
+    if (value >= 0.02) return "#3B82F6";
+    return "#8B949E";
+}
+
 export default function HeatmapPage() {
     const [hoveredCell, setHoveredCell] = useState<{
         theme: string;
@@ -53,6 +66,8 @@ export default function HeatmapPage() {
     // ─── Live data polling ───────────────────────────────────
     const heatmapFetcher = useCallback(() => fetchHeatmap(), []);
     const timelineFetcher = useCallback(() => fetchTimeline(), []);
+    const sstFetcher = useCallback(() => fetchSST(), []);
+    const articlesFetcher = useCallback(() => fetchArticles(), []);
 
     const {
         data: heatmapLive,
@@ -74,7 +89,34 @@ export default function HeatmapPage() {
         interval: 30_000,
     });
 
+    const {
+        data: sstData,
+    } = usePolling<any>({
+        fetcher: sstFetcher,
+        interval: 60_000,
+    });
+
+    const {
+        data: articlesData,
+    } = usePolling<{ articles: BackendArticle[] }>({
+        fetcher: articlesFetcher,
+        interval: 60_000,
+    });
+
     const isLive = isHeatmapLive || isTimelineLive;
+
+    // ─── SST Theme Probabilities ─────────────────────────────
+    const probChartData = useMemo(() => {
+        const probs = sstData?.regime_output?.probabilities;
+        if (!probs) return [];
+        return Object.entries(probs)
+            .map(([theme, prob]) => ({
+                theme: formatLabel(theme),
+                probability: Math.round((prob as number) * 10000) / 100,
+                raw: prob as number,
+            }))
+            .sort((a, b) => b.probability - a.probability);
+    }, [sstData]);
 
     // ─── Transform data ──────────────────────────────────────
     const { matrixDays, matrixRows } = useMemo(() => {
@@ -103,11 +145,24 @@ export default function HeatmapPage() {
 
     // Timeline events from backend snapshots or mock
     const timelineEvents = useMemo(() => {
+        const articles = articlesData?.articles || [];
+
         if (timelineLive?.timeline && timelineLive.timeline.length > 0) {
-            return timelineLive.timeline.slice(-9).reverse().map((snapshot, i) => {
+            return timelineLive.timeline.slice(-9).reverse().map((snapshot) => {
                 const scores = Object.entries(snapshot.scores);
                 const topTheme = scores.sort((a, b) => b[1] - a[1])[0];
                 const score = topTheme ? topTheme[1] : 0;
+                const themeKey = topTheme ? topTheme[0] : "";
+
+                // Find a matching headline from articles for this theme
+                const normalizedKey = themeKey.replace(/ /g, "_");
+                const matchingArticle = articles.find((a) => {
+                    const artThemes = Object.keys(a.themes || {});
+                    return artThemes.some((t) => t === normalizedKey || t === themeKey || t.replace(/ /g, "_") === normalizedKey);
+                });
+                const headline = matchingArticle
+                    ? (matchingArticle.title.length > 55 ? matchingArticle.title.slice(0, 52) + "..." : matchingArticle.title)
+                    : "";
 
                 let date = snapshot.timestamp;
                 try {
@@ -118,13 +173,14 @@ export default function HeatmapPage() {
                 return {
                     date,
                     title: topTheme ? topTheme[0] : "Snapshot",
+                    headline,
                     category: (score > 5 ? "HIGH" : score > 2 ? "MEDIUM" : "LOW") as "HIGH" | "MEDIUM" | "LOW",
                     icon: score > 5 ? "🔴" : score > 2 ? "🟡" : "🟢",
                 };
             });
         }
-        return mockTimelineEvents;
-    }, [timelineLive]);
+        return mockTimelineEvents.map((e) => ({ ...e, headline: "" }));
+    }, [timelineLive, articlesData]);
 
     return (
         <div className="p-6 lg:p-8 space-y-6">
@@ -146,6 +202,53 @@ export default function HeatmapPage() {
                     onRefresh={refresh}
                 />
             </div>
+
+            {/* THEME PROBABILITY CHART */}
+            {probChartData.length > 0 && (
+                <div className="card p-5">
+                    <h2 className="section-header mb-4">
+                        <span className="text-[#39FF14]">📊</span> Theme Probability Distribution
+                        <span className="ml-2 text-[8px] text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/30 px-1.5 py-0.5 rounded">
+                            SST ENGINE
+                        </span>
+                    </h2>
+                    <div style={{ height: `${Math.max(280, probChartData.length * 32)}px` }} className="w-full bg-[#0E1117] rounded-lg border border-[#30363D] p-3">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={probChartData}
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                            >
+                                <XAxis
+                                    type="number"
+                                    domain={[0, 100]}
+                                    tick={{ fill: "#8B949E", fontSize: 10 }}
+                                    tickFormatter={(val) => `${val}%`}
+                                    axisLine={{ stroke: "#30363D" }}
+                                />
+                                <YAxis
+                                    dataKey="theme"
+                                    type="category"
+                                    width={140}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: "#C9D1D9", fontSize: 11 }}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                                    contentStyle={{ backgroundColor: "#161B22", border: "1px solid #30363D", borderRadius: "8px", fontSize: 12 }}
+                                    formatter={(val: number) => [`${val.toFixed(2)}%`, "Probability"]}
+                                />
+                                <Bar dataKey="probability" radius={[0, 4, 4, 0]}>
+                                    {probChartData.map((entry, index) => (
+                                        <Cell key={`prob-${index}`} fill={getProbColor(entry.raw)} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
             {/* HEATMAP MATRIX */}
             <div className="card p-5">
@@ -227,7 +330,7 @@ export default function HeatmapPage() {
                                 {matrixRows.map((row) => (
                                     <tr key={row.theme}>
                                         <td className="text-[13px] font-medium text-[#C9D1D9] pr-4 py-1.5 whitespace-nowrap">
-                                            {row.theme}
+                                            {formatLabel(row.theme)}
                                         </td>
                                         {row.cells.map((cell, colIdx) => (
                                             <td key={colIdx} className="p-1">
@@ -255,7 +358,7 @@ export default function HeatmapPage() {
                                                         hoveredCell.colIdx === colIdx && (
                                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1e2530] border border-[#30363D] rounded-lg px-3 py-2 text-[11px] whitespace-nowrap z-50 shadow-xl">
                                                                 <div className="text-white font-semibold">
-                                                                    {row.theme}
+                                                                    {formatLabel(row.theme)}
                                                                 </div>
                                                                 <div className="text-[#8B949E]">
                                                                     {matrixDays[colIdx]} · Score:{" "}
@@ -328,9 +431,15 @@ export default function HeatmapPage() {
                                     {event.date}
                                 </div>
 
-                                <div className="text-[10px] text-[#8B949E] text-center leading-tight max-w-[80px]">
-                                    {event.title}
+                                <div className="text-[10px] text-[#8B949E] text-center leading-tight max-w-[110px]">
+                                    {formatLabel(event.title)}
                                 </div>
+
+                                {event.headline && (
+                                    <div className="text-[9px] text-[#58A6FF] text-center leading-tight max-w-[120px] mt-0.5 italic">
+                                        {event.headline}
+                                    </div>
+                                )}
 
                                 <div
                                     className="mt-2 px-2 py-0.5 rounded text-[8px] font-bold uppercase"

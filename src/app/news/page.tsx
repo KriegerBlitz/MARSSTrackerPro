@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { newsData as mockNewsData, themeFrequencyData as mockThemeFreq } from "@/data/mockData";
+
+const formatLabel = (str: string) => str.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 import {
     fetchArticles,
     transformArticlesToNews,
@@ -200,7 +202,7 @@ export default function NewsPage() {
                             className={`theme-tag ${activeThemes.includes(theme) ? "active" : ""
                                 }`}
                         >
-                            {theme}
+                            {formatLabel(theme)}
                         </button>
                     ))}
                 </div>
@@ -255,7 +257,7 @@ export default function NewsPage() {
                                     >
                                         {news.sentiment}
                                     </span>
-                                    <span className="theme-tag text-[10px]">{news.theme}</span>
+                                    <span className="theme-tag text-[10px]">{formatLabel(news.theme)}</span>
                                 </div>
 
                                 {/* Headline */}
@@ -334,7 +336,7 @@ export default function NewsPage() {
                             {themeFrequency.map((item, index) => (
                                 <div key={item.theme} className="flex items-center gap-3">
                                     <span className="text-xs text-[#8B949E] w-28 truncate text-right">
-                                        {item.theme}
+                                        {formatLabel(item.theme)}
                                     </span>
                                     <div className="flex-1 h-5 bg-[#0E1117] rounded overflow-hidden relative">
                                         <div

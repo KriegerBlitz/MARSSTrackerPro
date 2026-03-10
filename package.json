@@ -13,6 +13,7 @@
     "@types/react-router-dom": "^5.3.3",
     "clsx": "latest",
     "endent": "latest",
+    "lightningcss": "^1.32.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
@@ -25,6 +26,7 @@
     "@types/node": "25.3.5",
     "@types/react": "19.2.14",
     "autoprefixer": "^10.4.27",
+    "lightningcss-linux-x64-gnu": "^1.32.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
     "typescript": "5.9.3"

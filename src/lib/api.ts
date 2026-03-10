@@ -117,8 +117,11 @@ export async function fetchSST() {
 }
 
 /** Fetch AI briefing */
-export async function fetchBriefing() {
-    return apiFetch<{ briefing: string }>("/briefing");
+export async function fetchBriefing(items?: PortfolioInputItem[]) {
+    return apiFetch<{ briefing: string }>("/briefing", {
+        method: "POST",
+        body: items && items.length > 0 ? JSON.stringify(items) : undefined,
+    });
 }
 
 /** Check if backend is reachable */
@@ -207,12 +210,12 @@ export function transformArticlesToNews(articles: BackendArticle[]) {
         } else {
             // Fallback: derive from theme
             const bearishThemes = [
-                "Inflation Shock", "Recession Risk", "Banking Stress", "Credit Crunch",
-                "Energy Shock", "Risk Off", "Volatility Shock", "Geopolitical Escalation",
-                "Growth Slowdown", "Monetary Tightening",
+                "Inflation_Shock", "Recession_Risk", "Banking_Stress", "Credit_Crunch",
+                "Energy_Shock", "Risk_Off", "Volatility_Shock", "Geopolitical_Escalation",
+                "Growth_Slowdown", "Monetary_Tightening",
             ];
             const bullishThemes = [
-                "Growth Reacceleration", "Monetary Easing", "Risk On", "Disinflation",
+                "Growth_Reacceleration", "Monetary_Easing", "Risk_On", "Disinflation",
             ];
             if (bearishThemes.includes(topTheme)) sentiment = "BEARISH";
             else if (bullishThemes.includes(topTheme)) sentiment = "BULLISH";
@@ -306,44 +309,95 @@ export function transformHeatmapToFrequency(heatmap: Record<string, number>) {
 }
 
 /**
- * Transform timeline snapshots into the 7-day heatmap matrix format.
- * Each row is a theme, each column is a snapshot time.
+ * Normalize a theme key: convert spaces to underscores so old
+ * timeline snapshots (with space-separated names) match the current scheme.
+ */
+function normalizeThemeKey(key: string): string {
+    return key.replace(/ /g, "_");
+}
+
+/**
+ * Transform timeline snapshots into a structured heatmap matrix.
+ * Columns: 30D | 7D | 24H | then 4 recent weekday columns.
+ * Snapshots are grouped into time buckets and scores are averaged.
  */
 export function transformTimelineToHeatmapMatrix(
     timeline: BackendTimelineSnapshot[],
     heatmap: Record<string, number>
 ) {
-    // Use last 7 snapshots or pad with empty
-    const snapshots = timeline.slice(-7);
     const themes = Object.keys(heatmap);
+    const now = new Date();
 
-    const days = snapshots.map((s) => {
-        try {
-            const d = new Date(s.timestamp);
-            return d.toLocaleDateString("en-US", { weekday: "short" });
-        } catch {
-            return s.timestamp.slice(0, 10);
-        }
-    });
+    // --- Define time bucket boundaries ---
+    const ms24h  = 24 * 60 * 60 * 1000;
+    const ms7d   = 7  * ms24h;
+    const ms30d  = 30 * ms24h;
 
-    // Pad days to 7 if less
-    while (days.length < 7) {
-        days.unshift("—");
+    // --- Build 4 recent weekday columns (today back to 3 days ago) ---
+    const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const recentDays: { label: string; start: Date; end: Date }[] = [];
+    for (let offset = 0; offset < 4; offset++) {
+        const dayEnd = new Date(now);
+        dayEnd.setHours(23, 59, 59, 999);
+        dayEnd.setDate(dayEnd.getDate() - offset);
+
+        const dayStart = new Date(dayEnd);
+        dayStart.setHours(0, 0, 0, 0);
+
+        recentDays.push({
+            label: weekdayNames[dayStart.getDay()],
+            start: dayStart,
+            end: dayEnd,
+        });
     }
+    // Reverse so oldest is first (left to right = past to present)
+    recentDays.reverse();
 
+    // --- Column definitions ---
+    const columns = [
+        { label: "30D", start: new Date(now.getTime() - ms30d), end: now },
+        { label: "7D",  start: new Date(now.getTime() - ms7d),  end: now },
+        { label: "24H", start: new Date(now.getTime() - ms24h), end: now },
+        ...recentDays,
+    ];
+
+    const days = columns.map((c) => c.label);
+
+    // --- Group snapshots by theme and column ---
     const rows = themes.map((theme) => {
-        const cells = [];
-        for (let i = 0; i < 7; i++) {
-            const snapshot = snapshots[i];
-            if (snapshot && snapshot.scores[theme] !== undefined) {
-                // Normalize score to -100..100 range
-                const raw = snapshot.scores[theme];
-                const normalized = Math.max(-100, Math.min(100, Math.round(raw * 10)));
-                cells.push({ value: normalized });
-            } else {
-                cells.push({ value: 0 });
+        const cells = columns.map((col) => {
+            // Find snapshots in this time window
+            const matching = timeline.filter((s) => {
+                try {
+                    const t = new Date(s.timestamp);
+                    return t >= col.start && t <= col.end;
+                } catch {
+                    return false;
+                }
+            });
+
+            if (matching.length === 0) return { value: 0 };
+
+            // Average the score for this theme across matching snapshots
+            let total = 0;
+            let count = 0;
+            for (const snap of matching) {
+                // Try both normalized and raw theme key
+                const val = snap.scores[theme] ?? snap.scores[normalizeThemeKey(theme)]
+                    ?? snap.scores[theme.replace(/_/g, " ")];
+                if (val !== undefined) {
+                    total += val;
+                    count++;
+                }
             }
-        }
+
+            if (count === 0) return { value: 0 };
+
+            const avg = total / count;
+            const normalized = Math.max(-100, Math.min(100, Math.round(avg * 10)));
+            return { value: normalized };
+        });
+
         return { theme, cells };
     });
 

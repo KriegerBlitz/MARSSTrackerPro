@@ -42,8 +42,8 @@ const navItems = [
         ),
     },
     {
-        label: "Stress Test",
-        href: "/stress-test",
+        label: "Risk Implication",
+        href: "/risk-implication",
         icon: (
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -65,7 +65,7 @@ export default function Sidebar() {
             <div className="flex items-center justify-between p-5 pb-8">
                 <div className={`flex items-center gap-2 ${collapsed ? "justify-center w-full" : ""}`}>
                     <span className="text-xl font-black tracking-tighter text-white">
-                        FT
+                        MT
                     </span>
                     {!collapsed && (
                         <span className="text-[9px] text-[#39FF14] border border-[#39FF14] px-1.5 py-0.5 rounded font-bold tracking-wider">

@@ -43,15 +43,33 @@ export default function PortfolioPage() {
 
     // Load custom portfolio from local storage
     useEffect(() => {
-        const saved = localStorage.getItem("customPortfolio");
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setCustomHoldings(parsed);
+        const loadHoldings = () => {
+            const saved = localStorage.getItem("customPortfolio");
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setCustomHoldings(parsed);
+                    } else {
+                        setCustomHoldings([]);
+                    }
+                } catch (e) {
+                    setCustomHoldings([]);
                 }
-            } catch (e) { }
-        }
+            } else {
+                setCustomHoldings([]);
+            }
+        };
+
+        loadHoldings();
+
+        window.addEventListener("portfolioUpdated", loadHoldings);
+        window.addEventListener("storage", loadHoldings);
+
+        return () => {
+            window.removeEventListener("portfolioUpdated", loadHoldings);
+            window.removeEventListener("storage", loadHoldings);
+        };
     }, []);
 
     const saveHoldings = (items: PortfolioInputItem[]) => {
@@ -61,6 +79,7 @@ export default function PortfolioPage() {
         } else {
             localStorage.removeItem("customPortfolio");
         }
+        window.dispatchEvent(new Event("portfolioUpdated"));
     };
 
     const handleAddAsset = () => {
@@ -113,6 +132,66 @@ export default function PortfolioPage() {
                 value,
                 pct: totalValue > 0 ? (value / totalValue) * 100 : 0,
                 color: getSectorColor(sector),
+            }));
+    }, [holdings, totalValue]);
+
+    // ─── Asset Class Allocation (SST ENGINE 6 categories) ────
+    const FACTOR_MAP: Record<string, string> = {
+        AAPL: "Equities", MSFT: "Equities", GOOGL: "Equities", META: "Equities",
+        AMZN: "Equities", NVDA: "Equities", TSLA: "Equities", JPM: "Equities",
+        BAC: "Equities", GS: "Equities", WFC: "Equities", C: "Equities",
+        QQQ: "Equities", SPY: "Equities", IWM: "Equities", DIA: "Equities",
+        GLD: "Equities", SLV: "Equities", // Commodities mapped to Equities
+        TLT: "Rates", IEF: "Rates", SHY: "Rates", BND: "Rates", AGG: "Rates",
+        HYG: "Credit_Spreads", LQD: "Credit_Spreads", JNK: "Credit_Spreads",
+        UUP: "USD", DXY: "USD",
+        USO: "Oil", XLE: "Oil", OIL: "Oil", XOP: "Oil",
+        VIXY: "Volatility", VXX: "Volatility", UVXY: "Volatility",
+    };
+
+    const SECTOR_TO_CLASS: Record<string, string> = {
+        Technology: "Equities", Automotive: "Equities", Financials: "Equities",
+        "Consumer Cyclical": "Equities", "Consumer Defensive": "Equities",
+        Healthcare: "Equities", Industrials: "Equities", "Real Estate": "Equities",
+        "Communication Services": "Equities",
+        Commodities: "Oil", Energy: "Oil",
+        Bonds: "Rates", "Fixed Income": "Rates",
+        Index: "Equities",
+    };
+
+    const getAssetClass = (h: PortfolioHolding): string => {
+        if (FACTOR_MAP[h.ticker]) return FACTOR_MAP[h.ticker];
+        if (SECTOR_TO_CLASS[h.sector]) return SECTOR_TO_CLASS[h.sector];
+        return "Equities"; // default fallback, matching SST ENGINE
+    };
+
+    const ASSET_CLASS_COLORS: Record<string, string> = {
+        Equities: "#3B82F6",
+        Rates: "#8B5CF6",
+        Credit_Spreads: "#F59E0B",
+        USD: "#06B6D4",
+        Oil: "#10B981",
+        Volatility: "#EF4444",
+    };
+
+    const assetClassAlloc = useMemo(() => {
+        if (!holdings.length) return [];
+        const classes: Record<string, { value: number; tickers: string[] }> = {};
+        holdings.forEach((h) => {
+            const cls = getAssetClass(h);
+            if (!classes[cls]) classes[cls] = { value: 0, tickers: [] };
+            classes[cls].value += h.holdingValue;
+            classes[cls].tickers.push(h.ticker);
+        });
+        return Object.entries(classes)
+            .sort((a, b) => b[1].value - a[1].value)
+            .map(([cls, data]) => ({
+                assetClass: cls,
+                label: cls.replace(/_/g, " "),
+                value: data.value,
+                tickers: data.tickers,
+                pct: totalValue > 0 ? (data.value / totalValue) * 100 : 0,
+                color: ASSET_CLASS_COLORS[cls] || "#8B949E",
             }));
     }, [holdings, totalValue]);
 
@@ -411,6 +490,66 @@ export default function PortfolioPage() {
                                                     background: `linear-gradient(90deg, ${color}, ${color}88)`,
                                                 }}
                                             />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Asset Class Allocation (SST ENGINE) */}
+                    <div className="card p-5">
+                        <h2 className="section-header mb-4">
+                            <span className="text-[#39FF14]">⚡</span> Asset Class Exposure
+                            <span className="ml-2 text-[8px] text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/30 px-1.5 py-0.5 rounded">
+                                SST ENGINE
+                            </span>
+                        </h2>
+                        {isLoading ? (
+                            <div className="space-y-3">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={i} className="skeleton h-6 w-full" />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {assetClassAlloc.map(({ assetClass, label, pct, tickers, color }) => (
+                                    <div key={assetClass}>
+                                        <div className="flex justify-between items-center text-xs mb-1">
+                                            <span className="flex items-center gap-2">
+                                                <span
+                                                    className="w-2.5 h-2.5 rounded-sm"
+                                                    style={{ background: color }}
+                                                />
+                                                <span className="text-[#C9D1D9] font-semibold uppercase text-[11px]">{label}</span>
+                                            </span>
+                                            <span className="font-mono text-[#8B949E]">
+                                                {pct.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-[#0E1117] rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-700"
+                                                style={{
+                                                    width: `${pct}%`,
+                                                    background: `linear-gradient(90deg, ${color}, ${color}88)`,
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                            {tickers.map((t) => (
+                                                <span
+                                                    key={t}
+                                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+                                                    style={{
+                                                        color: color,
+                                                        borderColor: `${color}40`,
+                                                        background: `${color}10`,
+                                                    }}
+                                                >
+                                                    {t}
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
                                 ))}

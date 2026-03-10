@@ -1,5 +1,5 @@
 THEMES = {
-    "Inflation Shock": [
+    "Inflation_Shock": [
         "inflation", "CPI", "PCE", "price surge", "cost of living",
         "hyperinflation", "price spike", "inflationary pressure",
         "rising prices", "consumer prices", "inflation data",
@@ -18,7 +18,7 @@ THEMES = {
         "lower inflation", "inflation retreats"
     ],
 
-    "Energy Shock": [
+    "Energy_Shock": [
         "oil prices", "crude oil", "energy crisis", "gas prices",
         "OPEC", "oil supply cut", "energy shock", "Brent crude",
         "WTI", "natural gas prices", "fuel costs", "energy prices surge",
@@ -28,7 +28,7 @@ THEMES = {
         "Strait of Hormuz", "oil production", "energy inflation"
     ],
 
-    "Growth Slowdown": [
+    "Growth_Slowdown": [
         "growth slowdown", "GDP slows", "economic deceleration",
         "weak growth", "sluggish economy", "PMI contraction",
         "slowing demand", "output falls", "business activity slows",
@@ -38,7 +38,7 @@ THEMES = {
         "weak economy", "economic drag", "growth worries"
     ],
 
-    "Recession Risk": [
+    "Recession_Risk": [
         "recession", "GDP contraction", "unemployment rising",
         "economic downturn", "negative growth", "recession fears",
         "inverted yield curve", "job losses", "recession risk",
@@ -49,7 +49,7 @@ THEMES = {
         "mass layoffs", "unemployment surge"
     ],
 
-    "Growth Reacceleration": [
+    "Growth_Reacceleration": [
         "growth rebound", "economic recovery", "GDP beats",
         "strong growth", "expansion", "boom", "economic acceleration",
         "upside surprise", "strong jobs", "robust demand",
@@ -59,7 +59,7 @@ THEMES = {
         "recovery accelerates", "growth beats"
     ],
 
-    "Monetary Tightening": [
+    "Monetary_Tightening": [
         "rate hike", "Federal Reserve hike", "interest rate rise",
         "hawkish Fed", "tightening cycle", "quantitative tightening",
         "QT", "Fed raises rates", "ECB hike", "restrictive policy",
@@ -69,7 +69,7 @@ THEMES = {
         "hawkish", "tighter policy", "rate rises"
     ],
 
-    "Monetary Easing": [
+    "Monetary_Easing": [
         "rate cut", "Fed cuts", "interest rate cut", "dovish Fed",
         "quantitative easing", "QE", "stimulus", "monetary easing",
         "rate reduction", "ECB cuts", "pivot", "Fed pivot",
@@ -79,7 +79,7 @@ THEMES = {
         "rate relief", "cut rates"
     ],
 
-    "Banking Stress": [
+    "Banking_Stress": [
         "bank failure", "bank run", "banking crisis", "bank collapse",
         "FDIC", "deposit outflows", "bank stress", "liquidity crisis",
         "bank bailout", "contagion", "systemic risk", "bank rescue",
@@ -89,7 +89,7 @@ THEMES = {
         "deposit flight", "bank panic", "lender stress"
     ],
 
-    "Credit Crunch": [
+    "Credit_Crunch": [
         "credit crunch", "lending tightens", "credit conditions",
         "loan defaults", "credit tightening", "bank lending falls",
         "corporate debt stress", "credit spreads widen", "junk bonds",
@@ -100,7 +100,7 @@ THEMES = {
         "debt stress", "credit markets"
     ],
 
-    "Geopolitical Escalation": [
+    "Geopolitical_Escalation": [
         "war", "military strike", "sanctions", "invasion",
         "geopolitical tension", "conflict escalation", "missile attack",
         "nuclear threat", "trade war", "tariffs", "blockade",
@@ -111,7 +111,7 @@ THEMES = {
         "Ukraine", "Taiwan", "North Korea", "troops", "warfare"
     ],
 
-    "Dollar Strength": [
+    "Dollar_Strength": [
         "dollar strengthens", "USD rally", "strong dollar",
         "dollar index", "DXY", "dollar surges", "dollar gains",
         "emerging market pressure", "currency devaluation",
@@ -121,7 +121,7 @@ THEMES = {
         "dollar appreciation", "strong USD"
     ],
 
-    "Risk Off": [
+    "Risk_Off": [
         "risk off", "flight to safety", "sell off", "market panic",
         "volatility spike", "safe haven", "gold rally", "bonds rally",
         "equities fall", "investor fear", "risk aversion",
@@ -132,7 +132,7 @@ THEMES = {
         "market crash", "stocks slide", "equities drop"
     ],
 
-    "Risk On": [
+    "Risk_On": [
         "risk on", "rally", "stocks surge", "equities climb",
         "market optimism", "investor confidence", "bull market",
         "risk appetite", "stocks jump", "market gains",
@@ -142,7 +142,7 @@ THEMES = {
         "risk assets rally", "stocks boom"
     ],
 
-    "Volatility Shock": [
+    "Volatility_Shock": [
         "VIX spike", "volatility surge", "market volatility",
         "VIX", "implied volatility", "options pricing", "fear index",
         "volatility shock", "turbulent markets", "wild swings",
