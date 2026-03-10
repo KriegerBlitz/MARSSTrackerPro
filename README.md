@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # 🛰️ MARSS — Macro Asset Risk Surveillance System
 
@@ -475,4 +475,3 @@ python main.py
 **Built for macro-aware portfolio risk management.**
 
 </div>
-]]>
