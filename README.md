@@ -1,337 +1,478 @@
-<p align="center">
-  <h1 align="center">Schroders Macro-Economic NLP Processing Engine (V2)</h1>
-  <p align="center">
-    <strong>Team MARSS — FinTech Hackathon</strong><br/>
-    Advanced portfolio tracking with a 15-theme macro taxonomy, probabilistic event forecasting,<br/>
-    and portfolio relevance tagging — powered by OpenAI Structured Outputs + FinBERT + spaCy.
-  </p>
-</p>
+<![CDATA[<div align="center">
+
+# 🛰️ MARSS — Macro Asset Risk Surveillance System
+
+**Real-time NLP-driven macro theme detection, cross-asset stress testing, and portfolio risk analytics.**
+
+[![Python](https://img.shields.io/badge/Backend-Python_3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![OpenAI](https://img.shields.io/badge/AI-GPT--4o--mini-412991?logo=openai&logoColor=white)](https://openai.com/)
+[![License](https://img.shields.io/badge/License-Private-lightgrey)]()
+
+</div>
 
 ---
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [Overview](#overview)
-- [What Changed in V2](#what-changed-in-v2)
-- [Tech Stack](#tech-stack)
-- [Architecture & Pipeline](#architecture--pipeline)
-  - [Module 1 — Text Preprocessing](#module-1--text-preprocessing)
-  - [Module 2 — LLM Structured Extraction](#module-2--llm-structured-extraction)
-  - [Module 3 — Financial NER + Portfolio Relevance](#module-3--financial-ner--portfolio-relevance)
-  - [Module 4 — Sentiment & Intensity (FinBERT)](#module-4--sentiment--intensity-finbert)
-- [Project Structure](#project-structure)
-- [15-Theme Macro Taxonomy](#15-theme-macro-taxonomy)
-- [Input / Output Schemas](#input--output-schemas)
-- [Getting Started](#getting-started)
-- [API Reference](#api-reference)
-- [Example Usage](#example-usage)
+- [Overview](#-overview)
+- [System Architecture](#-system-architecture)
+- [NLP Pipeline](#-nlp-pipeline)
+- [SST Engine (Scenario Stress-Test)](#-sst-engine-scenario-stress-test)
+- [Frontend Dashboard](#-frontend-dashboard)
+- [Data Flow](#-end-to-end-data-flow)
+- [Macro Themes](#-macro-themes)
+- [API Reference](#-api-reference)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Tech Stack](#-tech-stack)
 
 ---
 
-## Overview
+## 🔭 Overview
 
-The **Schroders Macro-Economic NLP Engine** is a FastAPI-powered backend that ingests raw financial news articles and returns deeply structured macroeconomic insights. V2 introduces:
+MARSS is a full-stack **macro-financial surveillance platform** that:
 
-- **15-theme macro taxonomy** with strict enum enforcement
-- **Probabilistic event forecasting** — 3 predicted future events with percentage odds
-- **Portfolio relevance tagging** — extracts stock tickers, FX pairs, and commodities
-- **OpenAI Structured Outputs** — single LLM call with guaranteed JSON schema matching
-- **FinBERT sentiment** — financial-domain sentiment and intensity scoring
-
----
-
-## What Changed in V2
-
-| Feature | V1 | V2 |
-|---------|-----|-----|
-| Macro themes | 7 free-text themes | 15-value strict `MacroTheme` enum |
-| LLM calls | 2 separate (classify + summarize) | 1 single call via `response_format` |
-| Output guarantee | Manual JSON parsing | OpenAI Structured Outputs (schema-enforced) |
-| Forecasting | None | `future_odds` — 3 events with probabilities |
-| Portfolio tags | None | Tickers, FX pairs, commodities extraction |
-| NER | GPE + ORG | GPE + ORG + MONEY + PRODUCT |
-| Schemas | Inline in main.py | Dedicated `pydantic_models.py` |
-| FinBERT | ✅ | ✅ (unchanged) |
+1. **Ingests** live financial news from 7 RSS feeds (BBC, NYT, CNBC, MarketWatch, Yahoo Finance, Investing.com, Sky News)
+2. **Classifies** each article against **15 macro themes** (e.g. Inflation Shock, Recession Risk, Geopolitical Escalation) using keyword-based NLP and VADER sentiment analysis
+3. **Computes** a multi-factor **heat score** per theme that combines sentiment intensity, theme strength, recency, and volume
+4. **Runs** a quantitative **Scenario Stress-Test (SST) Engine** that translates theme probabilities into cross-asset shock vectors, detects macro regimes, and maps impacts onto a live portfolio
+5. **Generates** AI-powered daily briefings via GPT-4o-mini
+6. **Visualizes** everything in a real-time Next.js dashboard with live polling, interactive heatmaps, and portfolio tracking via yFinance
 
 ---
 
-## Tech Stack
+## 🏛️ System Architecture
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **API Framework** | FastAPI + Uvicorn | Async HTTP server with OpenAPI docs |
-| **Schema Enforcement** | Pydantic v2 | Strict I/O validation + OpenAI response_format |
-| **Sentiment Analysis** | HuggingFace Transformers (`ProsusAI/finbert`) | Financial sentiment classification |
-| **Named Entity Recognition** | spaCy (`en_core_web_sm`) | Geographies, organisations, money, products |
-| **LLM Reasoning** | OpenAI API (`gpt-4o-mini`) | Structured extraction with JSON schema |
-| **Data Processing** | pandas, NumPy | Batch processing, numerical ops |
-| **Text Cleaning** | BeautifulSoup4, regex | HTML stripping, abbreviation normalization |
-| **Runtime** | Python 3.12 + torch 2.5.1 (CPU) | ML-compatible runtime |
+```mermaid
+graph TB
+    subgraph "Data Ingestion"
+        RSS["📡 RSS Feeds<br/>(BBC, NYT, CNBC,<br/>MarketWatch, Yahoo,<br/>Investing.com, Sky)"]
+    end
 
----
+    subgraph "Python Backend (FastAPI)"
+        FEEDS["feeds.py<br/>Article Fetcher"]
+        SCORER["scorer.py<br/>Theme Scorer +<br/>VADER Sentiment"]
+        HEAT["heat_score.py<br/>Heat Aggregator"]
+        ALERTS["alerts.py<br/>Alert Triggers"]
+        TIMELINE["timeline.py<br/>Snapshot History"]
+        SUMMARIZER["summarizer.py<br/>GPT-4o Briefing"]
+        API["api.py<br/>FastAPI Server +<br/>30-min Scheduler"]
+        SST["SST ENGINE.py<br/>Stress-Test Engine"]
+        PORTFOLIO["portfolio.py<br/>Portfolio Shift API"]
+    end
 
-## Architecture & Pipeline
+    subgraph "External Services"
+        OPENAI["🤖 OpenAI API<br/>GPT-4o-mini"]
+        YFINANCE["📈 yFinance<br/>Live Market Data"]
+    end
 
-```
-                         POST /api/v1/process_article
-                                    │
-                                    ▼
-    ┌───────────────────────────────────────────────────────┐
-    │                   V2 NLP PIPELINE                     │
-    │                                                       │
-    │  ┌─────────────┐    ┌────────────────────────────┐    │
-    │  │  Module 1    │    │       Module 2              │    │
-    │  │  Preprocess  │──▶│  LLM Structured Extraction  │    │
-    │  │  (local)     │    │  (OpenAI response_format)   │    │
-    │  └──────┬───────┘    │                            │    │
-    │         │            │  → primary_macro_theme     │    │
-    │         │            │  → summary (2 paragraphs)  │    │
-    │         │            │  → future_odds (3 events)  │    │
-    │         │            └────────────────────────────┘    │
-    │         │                                             │
-    │         ▼                                             │
-    │  ┌─────────────────────┐  ┌───────────────────┐      │
-    │  │     Module 3         │  │     Module 4       │      │
-    │  │  NER + Portfolio     │  │  FinBERT Sentiment │      │
-    │  │  Tags (spaCy+regex)  │  │  & Intensity       │      │
-    │  │                     │  │                     │      │
-    │  │  → named_entities   │  │  → sentiment_score  │      │
-    │  │  → portfolio_tags   │  │  → intensity_score  │      │
-    │  └─────────────────────┘  └───────────────────┘      │
-    └──────────────────────┬────────────────────────────────┘
-                           │
-                           ▼
-                  Merged JSON Response
-```
+    subgraph "Frontend (Next.js)"
+        DASH["🏠 Dashboard<br/>Home Screen"]
+        HMAP["🔥 Heatmap<br/>Theme Matrix"]
+        NEWS["📰 News<br/>AI Summarizer"]
+        PORT["💼 Portfolio<br/>Live Tracker"]
+        RISK["⚡ Risk Implication<br/>SST Visualizer"]
+    end
 
-### Module 1 — Text Preprocessing
+    RSS --> FEEDS
+    FEEDS --> SCORER
+    FEEDS --> HEAT
+    FEEDS --> ALERTS
+    SCORER --> HEAT
+    HEAT --> TIMELINE
+    HEAT --> API
+    ALERTS --> API
+    TIMELINE --> API
+    API --> SST
+    API --> SUMMARIZER
+    SUMMARIZER --> OPENAI
+    API --> YFINANCE
+    PORTFOLIO --> YFINANCE
 
-**Function:** `preprocess_text()` | **Local, no API**
+    API -->|"REST JSON"| DASH
+    API -->|"REST JSON"| HMAP
+    API -->|"REST JSON"| NEWS
+    API -->|"REST JSON"| PORT
+    API -->|"REST JSON"| RISK
 
-| Operation | Example |
-|-----------|---------|
-| HTML stripping | `<p>Fed hikes</p>` → `Fed hikes` |
-| Financial abbreviations | `25bps` → `25 basis points`, `$5bn` → `$5 billion` |
-| Period shorthands | `QoQ` → `quarter-over-quarter`, `YoY` → `year-over-year` |
-
-### Module 2 — LLM Structured Extraction
-
-**Function:** `extract_structured_insights()` | **OpenAI API (single call)**
-
-Replaces V1's separate `classify_theme()` + `summarize_text()` with one optimised call using OpenAI's `response_format` parameter for **guaranteed JSON schema matching**.
-
-The LLM returns an `NLPInsights` object:
-- **`primary_macro_theme`**: one of 15 enum values (schema-enforced)
-- **`summary`**: 2-paragraph macro briefing (drivers + implications)
-- **`future_odds`**: 3 predicted events with percentage probabilities
-
-### Module 3 — Financial NER + Portfolio Relevance
-
-**Functions:** `extract_entities()` + `extract_portfolio_tags()` | **Local, no API**
-
-| Source | What it catches | Examples |
-|--------|----------------|----------|
-| Regex | Stock tickers | `$AAPL`, `$TSLA`, `$MSFT` |
-| Regex | Currency pairs | `EUR/USD`, `GBP/JPY` |
-| Keyword match | Commodities | Gold, Crude Oil, Natural Gas |
-| spaCy NER | Geographies (GPE) | United States, Euro Area |
-| spaCy NER | Organisations (ORG) | Federal Reserve, OPEC |
-| spaCy NER | Money (MONEY) | $95 a barrel |
-| spaCy NER | Products (PRODUCT) | Brent crude |
-
-### Module 4 — Sentiment & Intensity (FinBERT)
-
-**Function:** `analyze_sentiment()` | **Local, no API**
-
-- **Sentiment Score** (−1.0 to +1.0): FinBERT label × confidence
-- **Intensity Score** (0.0 to 1.0): confidence + keyword boost (max +0.30)
-
----
-
-## Project Structure
-
-```
-[FinTech Hackathon] Team MARSS/
-├── .env.example              # Environment variable template
-├── README.md                 # This documentation
-├── requirements.txt          # Python dependencies
-├── pydantic_models.py        # All schemas (MacroTheme enum, NLPInsights, I/O models)
-├── main.py                   # FastAPI server
-├── nlp_pipeline.py           # V2 pipeline modules + ModelManager
-└── kaggle_batch_processor.py # CLI batch CSV enrichment (local models only)
+    style RSS fill:#1a1a2e,stroke:#39FF14,color:#fff
+    style API fill:#0d1117,stroke:#39FF14,color:#fff
+    style SST fill:#1a1a2e,stroke:#EF4444,color:#fff
+    style OPENAI fill:#412991,stroke:#412991,color:#fff
+    style YFINANCE fill:#3B82F6,stroke:#3B82F6,color:#fff
 ```
 
 ---
 
-## 15-Theme Macro Taxonomy
+## 🧠 NLP Pipeline
 
-| # | Theme | Description |
-|---|-------|-------------|
-| 1 | `Inflation_Shock` | Unexpected inflation surge |
-| 2 | `Disinflation` | Inflation declining / cooling |
-| 3 | `Energy_Shock` | Oil/gas supply disruption or price spike |
-| 4 | `Growth_Slowdown` | Decelerating GDP / economic activity |
-| 5 | `Recession_Risk` | Elevated probability of economic contraction |
-| 6 | `Growth_Reacceleration` | Recovery / re-acceleration signals |
-| 7 | `Monetary_Tightening` | Rate hikes / hawkish central bank policy |
-| 8 | `Monetary_Easing` | Rate cuts / dovish central bank policy |
-| 9 | `Banking_Stress` | Bank failures, liquidity concerns |
-| 10 | `Credit_Crunch` | Tightening lending standards, rising defaults |
-| 11 | `Geopolitical_Escalation` | War, sanctions, trade conflicts |
-| 12 | `Dollar_Strength` | USD appreciation / DXY surge |
-| 13 | `Risk_Off` | Flight to safety, de-risking |
-| 14 | `Risk_On` | Appetite for risk assets returning |
-| 15 | `Volatility_Shock` | VIX spike, market turbulence |
+The NLP pipeline processes raw news articles through four scoring stages:
+
+```mermaid
+flowchart LR
+    A["Raw Article<br/>Title + Description"] --> B["Theme Matcher<br/>(15 themes × 20+ keywords)"]
+    B --> C["VADER Sentiment<br/>+ Financial Keywords"]
+    C --> D["Theme Score<br/>= matches × sentiment"]
+    D --> E["Heat Score<br/>40% strength + 30% sentiment<br/>+ 20% recency + 10% volume"]
+
+    style A fill:#161B22,stroke:#39FF14,color:#C9D1D9
+    style B fill:#161B22,stroke:#3B82F6,color:#C9D1D9
+    style C fill:#161B22,stroke:#F59E0B,color:#C9D1D9
+    style D fill:#161B22,stroke:#8B5CF6,color:#C9D1D9
+    style E fill:#161B22,stroke:#EF4444,color:#C9D1D9
+```
+
+### Scoring Components
+
+| Component | Module | Description |
+|-----------|--------|-------------|
+| **Theme Matching** | `scorer.py` | Counts keyword matches per theme from `themes.py` (15 themes × 20+ keywords each) |
+| **Sentiment** | `scorer.py` | Blends VADER compound score (60%) with financial keyword intensity (40%) |
+| **Confidence** | `scorer.py` | 70% peak match strength + 30% average match strength |
+| **Theme Strength** | `scorer.py` | 60% average keyword matches + 40% peak matches, normalized to [0, 1] |
+| **Recency** | `heat_score.py` | Stepped decay: 1.0 (< 6h) → 0.8 (< 24h) → 0.6 (< 3d) → 0.4 (< 7d) → 0.2 |
+| **Heat Score** | `heat_score.py` | Weighted composite: 40% strength + 30% sentiment + 20% recency + 10% volume |
+
+### Alert System
+
+`alerts.py` monitors for critical phrases across 5 categories:
+
+- **Geopolitical** — "declares war", "missile attack", "invasion begins" …
+- **Monetary** — "emergency rate cut", "surprise rate hike", "Fed intervenes" …
+- **Banking** — "bank failure", "bank collapse", "FDIC seizure" …
+- **Market** — "circuit breaker", "trading halted", "market crash" …
+- **Energy** — "oil embargo", "pipeline explosion", "Strait of Hormuz closed" …
 
 ---
 
-## Input / Output Schemas
+## ⚡ SST Engine (Scenario Stress-Test)
 
-### Input — `ArticleInput`
+The SST Engine (`SST ENGINE.py`) is a quantitative scenario analysis system that converts macro theme signals into actionable cross-asset shock vectors.
 
-```json
-{
-  "timestamp": "2026-03-06T12:00:00Z",
-  "source_name": "Reuters",
-  "source_type": "wire",
-  "author": "Jane Doe",
-  "headline": "Fed raises rates by 25bps amid persistent inflation",
-  "body_text": "The Federal Reserve raised interest rates...",
-  "url_reference": "https://reuters.com/article/fed-2026"
-}
+```mermaid
+flowchart TB
+    INPUT["NLP Pipeline Output<br/>(theme scores, heat, confidence)"] --> SOFTMAX["Softmax<br/>Theme → Probability"]
+    SOFTMAX --> SHOCK["Theme × Factor Matrix<br/>(15 themes × 6 factors)"]
+    SHOCK --> REGIME["Regime Detection<br/>(Growth, Inflation,<br/>Precarious, Crisis, Neutral)"]
+    REGIME --> AMP["Regime Amplification<br/>Crisis = 2.0× Equities,<br/>2.2× Volatility"]
+    AMP --> LADDER["Scenario Ladder<br/>Baseline (0.5×)<br/>Moderate (1.0×)<br/>Severe (1.5×)"]
+    AMP --> PORTFOLIO["Portfolio Impact<br/>weight × shock_factor"]
+    AMP --> CROSS["Cross-Asset Map<br/>Rates, Equities, Credit,<br/>USD, Oil, Volatility"]
+
+    style INPUT fill:#161B22,stroke:#39FF14,color:#C9D1D9
+    style REGIME fill:#161B22,stroke:#EF4444,color:#C9D1D9
+    style AMP fill:#1a1a2e,stroke:#F59E0B,color:#C9D1D9
 ```
 
-### Output — `ArticleOutput`
+### 6 Cross-Asset Factors
 
-```json
-{
-  "status": "success",
-  "processing_time_seconds": 2.847,
-  "input_metadata": { "..." },
-  "pipeline_result": {
-    "cleaned_text": "Fed raises rates by 25 basis points...",
-    "primary_macro_theme": "Monetary_Tightening",
-    "summary": "The Federal Reserve raised interest rates by 25 basis points, driven by persistent inflationary pressures across the US economy. Chair Powell emphasized that the labor market remains tight and core services inflation has not yet shown convincing signs of moderation.\n\nThis hawkish move is expected to tighten financial conditions further, putting downward pressure on equity valuations and widening credit spreads. Emerging market currencies face heightened depreciation risk as the rate differential with the US widens.",
-    "future_odds": [
-      { "event": "Fed delivers another 25bp hike within 3 months", "probability": "62%" },
-      { "event": "US 10Y yield breaches 5.0%", "probability": "45%" },
-      { "event": "S&P 500 correction of 10%+ within 6 months", "probability": "38%" }
-    ],
-    "portfolio_relevance_tags": ["$SPY", "EUR/USD", "Gold"],
-    "named_entities": {
-      "geographies": ["US"],
-      "organisations": ["Federal Reserve"]
-    },
-    "sentiment_score": -0.4521,
-    "intensity_score": 0.8734
-  }
-}
+| Factor | Examples | Description |
+|--------|----------|-------------|
+| **Rates** | TLT, IEF, BND | Interest rate / yield sensitivity |
+| **Equities** | SPY, QQQ, AAPL | Equity market beta |
+| **Credit Spreads** | HYG, LQD, JNK | Corporate credit risk |
+| **USD** | UUP, DXY | Dollar strength exposure |
+| **Oil** | USO, XLE | Energy / commodity sensitivity |
+| **Volatility** | VIXY, VXX | Implied volatility exposure |
+
+### Regime Detection
+
+The engine detects 5 macro regimes, each with distinct amplification multipliers:
+
+```mermaid
+graph LR
+    A["Theme<br/>Probabilities"] --> B{"Regime<br/>Classifier"}
+    B --> C["🟢 Growth"]
+    B --> D["🟡 Inflation"]
+    B --> E["🟠 Precarious"]
+    B --> F["🔴 Crisis"]
+    B --> G["⚪ Neutral"]
+
+    style B fill:#161B22,stroke:#39FF14,color:#C9D1D9
+    style C fill:#10B981,stroke:#10B981,color:#fff
+    style D fill:#F59E0B,stroke:#F59E0B,color:#fff
+    style E fill:#F97316,stroke:#F97316,color:#fff
+    style F fill:#EF4444,stroke:#EF4444,color:#fff
+    style G fill:#8B949E,stroke:#8B949E,color:#fff
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `primary_macro_theme` | `MacroTheme` enum | One of 15 themes |
-| `summary` | `string` | 2-paragraph macro briefing |
-| `future_odds` | `FutureOdd[]` | 3 predicted events with probabilities |
-| `portfolio_relevance_tags` | `string[]` | Tickers, FX pairs, commodities |
-| `named_entities` | `NamedEntities` | Geographies + organisations |
-| `sentiment_score` | `float [-1, 1]` | FinBERT directional sentiment |
-| `intensity_score` | `float [0, 1]` | Signal strength / urgency |
+| Regime | Trigger Conditions | Equities Multiplier | Volatility Multiplier |
+|--------|-------------------|---------------------|-----------------------|
+| **Growth** | High Growth Reacceleration + Risk On + Easing | 1.4× | 1.1× |
+| **Inflation** | High Inflation Shock + Tightening + Energy Shock | 1.1× | 1.0× |
+| **Precarious** | High Recession Risk + Growth Slowdown + Credit Crunch | 1.4× | 1.4× |
+| **Crisis** | Risk Off + Volatility Shock + Credit Crunch + Banking | 2.0× | 2.2× |
+| **Neutral** | No dominant signal (best score < 0.2) | 1.0× | 1.0× |
+
+### Theme → Factor Shock Matrix (excerpt)
+
+| Theme | Rates | Equities | Credit | USD | Oil | Volatility |
+|-------|-------|----------|--------|-----|-----|------------|
+| Inflation Shock | +2.0 | −1.0 | +1.0 | +1.0 | +1.0 | +1.0 |
+| Recession Risk | −2.0 | −3.0 | +3.0 | +1.0 | −2.0 | +3.0 |
+| Energy Shock | +1.0 | −1.0 | +1.0 | +0.5 | +3.0 | +1.0 |
+| Geopolitical Escalation | 0 | −1.5 | +1.2 | +0.8 | +2.5 | +1.8 |
+| Risk On | +1.0 | +3.0 | −2.0 | −1.0 | +1.0 | −2.0 |
 
 ---
 
-## Getting Started
+## 🖥️ Frontend Dashboard
 
-### Prerequisites
+The Next.js frontend provides 5 interactive pages, all with **live data polling** (30s–60s intervals) and automatic fallback to mock data when the backend is unreachable.
 
-- **Python 3.12** (torch has DLL issues on 3.14)
-- **OpenAI API key** (for the structured LLM extraction)
+### Pages
 
-### Installation
+| Page | Route | Description |
+|------|-------|-------------|
+| **Home Screen** | `/` | Portfolio snapshot, AI briefing, live article feed with per-article portfolio shift, alert ticker |
+| **Macro Heatmap** | `/heatmap` | Theme heat matrix (30D/7D/24H + daily columns), SST probability distribution chart, economic event timeline |
+| **News Summarizer** | `/news` | Full article feed with search, theme filters, sentiment badges, relevance scoring, theme frequency sidebar |
+| **Portfolio Tracker** | `/portfolio` | Live stock prices via yFinance, holdings table with sparklines, sector + asset class allocation, 52-week ranges, day movers, customizable portfolio (persisted to localStorage) |
+| **Risk Implication** | `/risk-implication` | SST Engine visualizer: regime badge, cross-asset impact bar chart, portfolio impact breakdown, scenario ladder table (baseline / moderate / severe) |
 
-```bash
-# Install dependencies
-py -3.12 -m pip install -r requirements.txt
+### Key Frontend Features
 
-# Download spaCy model
-py -3.12 -m spacy download en_core_web_sm
+- **Live Status Badge** — pulsing indicator showing connection state, last update time, and manual refresh
+- **Smart Fallback** — graceful degradation to mock data when backend is offline
+- **Custom Portfolio** — add/remove tickers persisted to `localStorage`, synced across all pages via `portfolioUpdated` events
+- **Portfolio Shift** — click any article to see how your portfolio moved since that article was published
 
-# Copy env template and set your API key
-copy .env.example .env
-# Edit .env → set OPENAI_API_KEY=sk-...
-```
+---
 
-### Running the Server
+## 🔄 End-to-End Data Flow
 
-```bash
-py -3.12 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+```mermaid
+sequenceDiagram
+    participant RSS as RSS Feeds
+    participant API as FastAPI Server
+    participant NLP as NLP Pipeline
+    participant SST as SST Engine
+    participant AI as OpenAI GPT-4o
+    participant YF as yFinance
+    participant FE as Next.js Frontend
 
-- API: `http://localhost:8000`
-- Interactive docs: `http://localhost:8000/docs`
-- Health check: `GET http://localhost:8000/health`
+    Note over API: Scheduler runs every 30 minutes
+    API->>RSS: Fetch articles from 7 feeds
+    RSS-->>API: ~100+ articles
+    API->>NLP: Score themes, sentiment, heat
+    NLP-->>API: Scored articles + heatmap + alerts
+    API->>SST: Run stress-test engine
+    SST->>YF: Fetch live portfolio prices
+    YF-->>SST: Real-time prices
+    SST-->>API: Regime, shocks, scenario ladder, portfolio impact
+    API->>API: Save sst_input.json + sst_output.json
 
-### Running the Batch Processor
-
-```bash
-# Enrich a CSV with local models (NER + FinBERT, no API costs)
-py -3.12 kaggle_batch_processor.py --input data.csv --output enriched --format both
+    Note over FE: Polls every 30-60 seconds
+    FE->>API: GET /dashboard, /articles, /heatmap
+    API-->>FE: JSON responses
+    FE->>API: POST /portfolio (custom holdings)
+    API->>YF: Fetch prices for each ticker
+    YF-->>API: Live prices + history
+    API-->>FE: Holdings + total value
+    FE->>API: POST /briefing
+    API->>AI: Generate summary prompt
+    AI-->>API: Macro briefing text
+    API-->>FE: AI briefing
 ```
 
 ---
 
-## API Reference
+## 🏷️ Macro Themes
+
+MARSS tracks **15 macroeconomic themes**, each defined by 17–30+ keyword triggers:
+
+| # | Theme | Sample Keywords |
+|---|-------|----------------|
+| 1 | **Inflation Shock** | inflation, CPI, PCE, tariffs, price surge, PPI |
+| 2 | **Disinflation** | disinflation, inflation cooling, CPI decline |
+| 3 | **Energy Shock** | oil prices, OPEC, Brent crude, WTI, pipeline disruption |
+| 4 | **Growth Slowdown** | GDP slows, PMI contraction, weak data, stagnation |
+| 5 | **Recession Risk** | recession, GDP contraction, inverted yield curve, layoffs |
+| 6 | **Growth Reacceleration** | GDP beats, strong growth, soft landing, upside surprise |
+| 7 | **Monetary Tightening** | rate hike, hawkish Fed, QT, higher for longer |
+| 8 | **Monetary Easing** | rate cut, dovish Fed, QE, pivot, accommodative policy |
+| 9 | **Banking Stress** | bank failure, bank run, FDIC, contagion, SVB |
+| 10 | **Credit Crunch** | credit crunch, loan defaults, credit spreads widen, junk bonds |
+| 11 | **Geopolitical Escalation** | war, sanctions, invasion, trade war, nuclear threat |
+| 12 | **Dollar Strength** | strong dollar, DXY, USD rally, greenback, EM pressure |
+| 13 | **Risk Off** | flight to safety, sell off, VIX, panic selling, safe haven |
+| 14 | **Risk On** | rally, stocks surge, bull market, risk appetite |
+| 15 | **Volatility Shock** | VIX spike, volatility surge, wild swings, whipsaw |
+
+---
+
+## 📡 API Reference
+
+### Core Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Server health + model-load status |
-| `POST` | `/api/v1/process_article` | Full V2 pipeline (returns `ArticleOutput`) |
+| `GET` | `/` | Health check — returns `{"status": "Macro NLP Engine Running"}` |
+| `GET` | `/dashboard` | Full dashboard payload: heatmap, alerts, timeline, SST output |
+| `GET` | `/heatmap` | Aggregated theme heat scores |
+| `GET` | `/articles` | Scored articles with themes, sentiment, heat, confidence |
+| `GET` | `/alerts` | Triggered alert phrases |
+| `GET` | `/timeline` | Historical heat score snapshots |
+| `GET` | `/snapshot` | Force-save a new timeline snapshot |
+| `GET` | `/sst` | Latest SST Engine output (regime, shocks, portfolio impact) |
+
+### Portfolio Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/portfolio` | Fetch live prices + holdings for given portfolio (body: `[{ticker, name, quantity, sector}]`) |
+| `POST` | `/portfolio/shift` | Compute portfolio shift since a timestamp (body: `{timestamp, items}`) |
+| `POST` | `/briefing` | Generate AI macro briefing for portfolio (body: portfolio items array) |
 
 ---
 
-## Example Usage
+## 📁 Project Structure
 
-### cURL
+```
+mars/
+├── api.py                  # FastAPI server — all REST endpoints + 30-min scheduler
+├── feeds.py                # RSS feed ingestion (7 sources)
+├── scorer.py               # Theme scoring + VADER sentiment + confidence
+├── heat_score.py           # Per-article and per-theme heat computation
+├── themes.py               # 15 macro themes × keyword definitions
+├── alerts.py               # Critical phrase alert triggers
+├── timeline.py             # Snapshot persistence to timeline.json
+├── summarizer.py           # GPT-4o-mini briefing generator
+├── portfolio.py            # Portfolio shift micro-API
+├── SST ENGINE.py           # Scenario Stress-Test engine (regime, shocks, ladder)
+├── main.py                 # CLI runner for NLP pipeline
+│
+├── sst_input.json          # NLP pipeline output → SST input (auto-generated)
+├── sst_output.json         # SST engine results (auto-generated)
+├── timeline.json           # Heat score snapshots history (auto-generated)
+├── current_portfolio.json  # Active portfolio (auto-generated)
+│
+├── requirements.txt        # Python dependencies
+├── package.json            # Node.js dependencies
+├── .env.example            # Environment variable template
+│
+└── src/                    # Next.js frontend
+    ├── app/
+    │   ├── page.tsx            # Home dashboard
+    │   ├── layout.tsx          # Root layout + sidebar
+    │   ├── globals.css         # Design system + theme
+    │   ├── heatmap/page.tsx    # Macro theme heatmap
+    │   ├── news/page.tsx       # AI news summarizer
+    │   ├── portfolio/page.tsx  # Portfolio tracker
+    │   └── risk-implication/page.tsx  # SST engine visualizer
+    ├── components/
+    │   ├── Sidebar.tsx         # Navigation sidebar
+    │   ├── LiveStatusBadge.tsx # Connection status indicator
+    │   └── MiniSparkline.tsx   # Inline sparkline charts
+    ├── hooks/
+    │   └── usePolling.ts       # Generic polling hook with error handling
+    ├── lib/
+    │   └── api.ts              # API client, types, data transformers
+    └── data/
+        └── mockData.ts         # Fallback mock data for offline mode
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Python** 3.10+
+- **Node.js** 18+
+- **npm** or **yarn**
+
+### 1. Clone the Repository
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/process_article \
-  -H "Content-Type: application/json" \
-  -d '{
-    "timestamp": "2026-03-06T12:00:00Z",
-    "source_name": "Bloomberg",
-    "source_type": "wire",
-    "author": "Markets Desk",
-    "headline": "Oil surges past $95 on OPEC+ supply cuts",
-    "body_text": "Brent crude surged past $95 a barrel after OPEC+ announced deeper-than-expected production cuts, raising fears of an energy-driven inflation shock across developed economies. The EUR/USD pair fell sharply as traders priced in prolonged ECB hawkishness. $XLE and $USO rallied while $SPY dropped 1.2%.",
-    "url_reference": "https://bloomberg.com/oil-2026"
-  }'
+git clone https://github.com/KriegerBlitz/MARSSTrackerPro.git
+cd MARSSTrackerPro
 ```
 
-### Python
+### 2. Backend Setup
 
-```python
-import requests
+```bash
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate   # Windows
 
-resp = requests.post(
-    "http://localhost:8000/api/v1/process_article",
-    json={
-        "timestamp": "2026-03-06T12:00:00Z",
-        "source_name": "FT",
-        "source_type": "research",
-        "author": "Markets Desk",
-        "headline": "Oil surges past $95 on OPEC+ supply cuts",
-        "body_text": "Brent crude surged past $95 a barrel...",
-        "url_reference": "https://ft.com/oil-2026",
-    },
-)
+# Install dependencies
+pip install -r requirements.txt
 
-data = resp.json()["pipeline_result"]
-print(f"Theme:     {data['primary_macro_theme']}")
-print(f"Tags:      {data['portfolio_relevance_tags']}")
-print(f"Sentiment: {data['sentiment_score']}")
-print(f"Forecasts: {data['future_odds']}")
+# Copy environment variables
+cp .env.example .env
+# Edit .env and set your OPENAI_API_KEY
 ```
+
+### 3. Frontend Setup
+
+```bash
+npm install
+```
+
+### 4. Run the Application
+
+**Terminal 1 — Start the FastAPI backend:**
+
+```bash
+uvicorn api:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Terminal 2 — Start the Next.js frontend:**
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
+
+### 5. Seed Initial Data (Optional)
+
+Run the NLP pipeline manually to populate `sst_input.json` and `sst_output.json`:
+
+```bash
+python main.py
+```
+
+> **Note:** The FastAPI server automatically runs the full pipeline (NLP + SST Engine) every 30 minutes via APScheduler. The first run occurs when the server processes a `/dashboard` or `/articles` request.
 
 ---
 
-<p align="center"><em>Built for the FinTech Hackathon by Team MARSS</em></p>
+## 🔐 Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Optional | OpenAI API key for GPT-4o-mini briefings. Falls back to rules-based summaries if unset. |
+| `NEXT_PUBLIC_API_URL` | Optional | Backend URL override (default: `http://localhost:8000`) |
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+- **FastAPI** — High-performance async API framework
+- **VADER Sentiment** — Financial text sentiment analysis
+- **NumPy / Pandas** — Numerical computation for SST Engine
+- **APScheduler** — Background pipeline scheduling (30-min interval)
+- **yFinance** — Real-time stock prices and historical data
+- **OpenAI SDK** — GPT-4o-mini for macro briefing generation
+- **BeautifulSoup4 + lxml** — RSS feed XML parsing
+
+### Frontend
+- **Next.js 15** — React framework with App Router
+- **Recharts** — Interactive charts and bar graphs
+- **Tailwind CSS 4** — Utility-first CSS framework
+- **TypeScript** — Type-safe frontend code
+
+---
+
+<div align="center">
+
+**Built for macro-aware portfolio risk management.**
+
+</div>
+]]>
